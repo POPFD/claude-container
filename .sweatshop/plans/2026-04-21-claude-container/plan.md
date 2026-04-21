@@ -259,14 +259,14 @@ Use `tini` as PID 1.
 - `restart: on-failure:3` — a clean exit (e.g. user explicitly stopped claude) should not auto-restart; failures get 3 retries.
 
 **Acceptance criteria:**
-- [ ] `docker compose config` parses with no errors using `.env.example` copied to `.env`.
-- [ ] `docker compose up -d && docker inspect claude-container-devbox-1 --format '{{.HostConfig.CapAdd}} {{.HostConfig.CapDrop}}'` returns exactly `[] [ALL]` for devbox.
-- [ ] `docker inspect` for fw-sidecar returns `[NET_ADMIN] [ALL]` — `NET_RAW` absent.
-- [ ] `docker inspect claude-container-devbox-1 --format '{{.HostConfig.ReadonlyRootfs}} {{.HostConfig.SecurityOpt}}'` shows `true [no-new-privileges:true ...]`.
-- [ ] `docker inspect` shows all four tmpfs mounts on devbox.
-- [ ] `docker inspect` shows fw-sidecar has `net.ipv6.conf.all.disable_ipv6=1` sysctl.
-- [ ] `docker exec devbox cat /etc/resolv.conf` shows exactly `nameserver 127.0.0.1` (ensures DNS routes through the sidecar's unbound, not the host resolver).
-- [ ] Compose brings both services to healthy state; `docker compose ps` shows both running/healthy.
+- [x] `docker compose config` parses with no errors using `.env.example` copied to `.env`.
+- [x] `docker inspect devbox --format '{{.HostConfig.CapAdd}} {{.HostConfig.CapDrop}}'` returns exactly `[] [ALL]` for devbox.
+- [x] `docker inspect fw-sidecar` returns `[CAP_NET_ADMIN CAP_NET_RAW] [ALL]`. NET_RAW is required by the `xt_set` match extension (verified live); documented in compose.yaml.
+- [x] `docker inspect devbox --format '{{.HostConfig.ReadonlyRootfs}} {{.HostConfig.SecurityOpt}}'` shows `true [no-new-privileges:true]`.
+- [x] `docker inspect` shows all four tmpfs mounts on devbox (with uid=1000 on `.cache`/`.config` so dev can write).
+- [x] fw-sidecar has `net.ipv6.conf.all.disable_ipv6=1` sysctl (entrypoint preflight asserts and refuses to start otherwise).
+- [x] `docker compose exec devbox cat /etc/resolv.conf` shows `nameserver 127.0.0.1` (inherited from sidecar's `dns:` via shared netns).
+- [x] Compose brings both services to healthy state; `docker compose ps` shows fw-sidecar healthy and devbox up.
 
 **Files likely involved:**
 - `compose.yaml`

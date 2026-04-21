@@ -83,11 +83,22 @@ RUN curl -fsSL https://claude.ai/install.sh -o /tmp/claude-install.sh \
     && claude --version
 
 # --------------------------------------------------------------------
-# Entrypoint (root → gosu dev). See devbox/entrypoint.sh.
+# Pre-seed named-volume mount points as dev-owned so Docker preserves
+# that ownership when it creates the volume on first mount. This
+# avoids needing root + SETUID/SETGID at runtime (which `cap_drop:
+# ALL` would strip anyway), so the container runs as `dev` from PID 1.
 # --------------------------------------------------------------------
 USER root
-COPY entrypoint.sh /entrypoint.sh
-COPY devbox-main.sh /devbox-main.sh
-RUN chmod +x /entrypoint.sh /devbox-main.sh
+RUN mkdir -p /home/dev/.claude /home/dev/.cargo /home/dev/.cache \
+        /home/dev/.config \
+    && chown -R dev:dev /home/dev
+USER dev
 
-ENTRYPOINT ["/usr/bin/tini", "--", "/entrypoint.sh"]
+# --------------------------------------------------------------------
+# Entrypoint runs as dev directly — no gosu hop needed because
+# /home/dev/.claude and /home/dev/.cargo are pre-seeded with dev
+# ownership at image build time.
+# --------------------------------------------------------------------
+COPY --chmod=755 devbox-main.sh /devbox-main.sh
+
+ENTRYPOINT ["/usr/bin/tini", "--", "/devbox-main.sh"]

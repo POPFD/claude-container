@@ -1,0 +1,98 @@
+services:
+  fw-sidecar:
+    build: ./fw-sidecar
+    container_name: fw-sidecar
+    restart: unless-stopped
+    cap_drop: [ALL]
+    cap_add:
+      # NET_ADMIN is required for iptables/ipset manipulation.
+      # NET_RAW is required empirically for the `xt_set` match
+      # extension (`-m set --match-set allowed_v4`) — without it
+      # iptables fails with "Can't open socket to ipset" when
+      # installing the per-port rules. This was not obvious from
+      # docs; verified live. The reviewer's earlier call to drop
+      # NET_RAW was correct in the general case but the ipset
+      # match extension needs it. Sidecar still has zero other
+      # caps and is the only container that holds these.
+      - NET_ADMIN
+      - NET_RAW
+    # IPv6 must be disabled in the netns (unprivileged /proc/sys is
+    # read-only so the entrypoint can't write these; Docker applies
+    # them at namespace-setup time). The sidecar entrypoint refuses
+    # to start if this isn't in effect.
+    sysctls:
+      net.ipv6.conf.all.disable_ipv6: "1"
+      net.ipv6.conf.default.disable_ipv6: "1"
+    # `dns:` here sets both the sidecar's and (via network_mode
+    # share) the devbox's /etc/resolv.conf to 127.0.0.1, so DNS from
+    # devbox processes goes through our unbound filter. Docker
+    # rejects this key on devbox itself (conflicts with
+    # network_mode: service:...), so it's set here on the sidecar
+    # and inherited.
+    dns:
+      - 127.0.0.1
+    environment:
+      DNS_UPSTREAM: "${DNS_UPSTREAM:-1.1.1.1}"
+      DNS_UPSTREAM_TLS: "${DNS_UPSTREAM_TLS:-0}"
+    volumes:
+      - ./config:/config:ro
+    healthcheck:
+      # Test the filter itself, not external reachability: unbound
+      # must be up AND must REFUSE an out-of-allowlist lookup.
+      test:
+        - CMD-SHELL
+        # `.invalid` is a reserved TLD unbound handles itself
+        # (NXDOMAIN), bypassing our refuse root. Use an ordinary
+        # non-allowlisted domain instead — it hits the "." refuse.
+        - "unbound-control status >/dev/null && dig @127.0.0.1 +noall +comments definitely-not-allowlisted.example.net 2>&1 | grep -q REFUSED"
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+
+  devbox:
+    build: ./devbox
+    container_name: devbox
+    depends_on:
+      fw-sidecar:
+        condition: service_healthy
+    # Join the sidecar's netns. All egress from devbox processes
+    # flows through the sidecar's iptables + unbound filter.
+    network_mode: "service:fw-sidecar"
+    restart: "on-failure:3"
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /run
+      # dev-owned tmpfs: default tmpfs is root-owned mode 755 which
+      # would block the dev user from writing. Explicit uid/gid keeps
+      # the rootfs read-only while letting tools write their caches.
+      - "/home/dev/.cache:uid=1000,gid=1000,mode=755"
+      - "/home/dev/.config:uid=1000,gid=1000,mode=755"
+    pids_limit: "${PIDS_LIMIT:-1024}"
+    mem_limit: "${MEM_LIMIT:-8g}"
+    ulimits:
+      nofile:
+        soft: 4096
+        hard: 8192
+    # NOTE: cannot use `dns:` here — Docker rejects it alongside
+    # `network_mode: service:...`. The devbox entrypoint rewrites
+    # /etc/resolv.conf to `nameserver 127.0.0.1` instead (which is
+    # writable even under read_only because resolv.conf is a bind
+    # mount from the daemon). Without this, Docker injects the host's
+    # nameservers and the DNS filter is bypassed.
+    environment:
+      DEVBOX_NAME: "${DEVBOX_NAME:-devbox}"
+    volumes:
+      - "${WORKSPACE_PATH:-./workspace}:/workspace"
+      - claude-config:/home/dev/.claude
+      - tool-caches:/home/dev/.cargo
+
+volumes:
+  claude-config:
+    name: claude-container_claude-config
+  tool-caches:
+    name: claude-container_tool-caches
