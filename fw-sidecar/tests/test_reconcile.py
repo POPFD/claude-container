@@ -91,6 +91,16 @@ def test_unbound_conf_has_forward_zones_for_exact_and_wildcard(sample):
     assert 'name: "wildcard.example.com."' in conf
 
 
+def test_unbound_conf_transparent_local_zones_override_root_refuse(sample):
+    """Without `local-zone: <name> transparent`, unbound's root-refuse
+    would shadow our forward-zones and every query returns REFUSED.
+    Regression test for that exact bug."""
+    conf = reconcile.build_unbound_conf(sample, upstream="1.1.1.1",
+                                        upstream_tls=False)
+    assert 'local-zone: "example.com." transparent' in conf
+    assert 'local-zone: "wildcard.example.com." transparent' in conf
+
+
 def test_unbound_conf_dot_switches_port_and_tls(sample):
     conf = reconcile.build_unbound_conf(sample, upstream="1.1.1.1",
                                         upstream_tls=True)
@@ -158,6 +168,30 @@ def test_retry_total_failure_exit_code_1():
     assert res.exit_code() == 1
 
 
+def test_retry_records_per_rtype_failure_when_other_rtype_succeeds(caplog):
+    """Regression: A record fails but AAAA succeeds — the domain must
+    still be marked succeeded, but the missing rtype must be logged.
+    Earlier implementation cleared `last_err` on AAAA success, hiding
+    the A-record failure entirely."""
+    def rtype_selective(name, rtype):
+        if rtype == "A":
+            raise reconcile.ResolveError("A always fails")
+        return ["2001:db8::1"]
+
+    s = reconcile.parse_allowlist(SAMPLE)
+    import logging
+    caplog.set_level(logging.WARNING, logger="reconcile")
+    res = reconcile.resolve_all(s, rtype_selective,
+                                max_attempts=2, backoff_base=0)
+    # Both domains should be in succeeded (AAAA worked)
+    assert "example.com" in res.succeeded
+    assert "api.example.com" in res.succeeded
+    assert not res.failed
+    # But A-record failures must be surfaced in logs
+    msgs = [r.getMessage() for r in caplog.records]
+    assert any("example.com A exhausted retries" in m for m in msgs)
+
+
 def test_retry_honors_max_attempts():
     """Retries exactly N times per domain.
 
@@ -193,9 +227,23 @@ def test_parse_dig_output_filters_comments():
 
 
 def test_parse_dig_output_strips_cname_hostnames():
-    """CNAME chains appear as bare hostnames without digits; drop them."""
-    sample = "example.cdn.net.\n93.184.216.34\n"
+    """CNAME chains appear as bare hostnames with trailing dots. Drop
+    them — including ones with digits in labels (e.g. CloudFront)."""
+    sample = (
+        "example.cdn.net.\n"
+        "dks7yomi95k2d.cloudfront.net.\n"   # digits in hostname
+        "93.184.216.34\n"
+    )
     assert reconcile.parse_dig_output(sample) == ["93.184.216.34"]
+
+
+def test_valid_member_rejects_hostnames_and_cross_family():
+    assert reconcile._valid_member("1.2.3.4", v6=False)
+    assert reconcile._valid_member("192.0.2.0/24", v6=False)
+    assert not reconcile._valid_member("2001:db8::1", v6=False)  # v6 in v4 set
+    assert reconcile._valid_member("2001:db8::1", v6=True)
+    assert not reconcile._valid_member("example.com", v6=False)
+    assert not reconcile._valid_member("foo.bar.", v6=False)
 
 
 def test_parse_dig_output_empty():

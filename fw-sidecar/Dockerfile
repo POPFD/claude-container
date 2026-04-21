@@ -8,6 +8,7 @@ RUN apk add --no-cache \
         iptables \
         ip6tables \
         ipset \
+        libcap \
         openssl \
         python3 \
         py3-pytest \
@@ -16,7 +17,9 @@ RUN apk add --no-cache \
         unbound \
     && unbound-control-setup
 
+COPY reconcile.py /reconcile.py
+COPY unbound-base.conf /etc/unbound/unbound.conf
 COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+RUN chmod +x /entrypoint.sh /reconcile.py
 
 ENTRYPOINT ["/sbin/tini", "--", "/entrypoint.sh"]

@@ -144,15 +144,15 @@ Ship with unit-testable helpers (no network/iptables calls): `parse_allowlist`, 
 **Why:** This is where the sidecar becomes functional. Explicit chain construction means a reviewer can audit "is the firewall set up correctly" directly against the spec.
 
 **Acceptance criteria:**
-- [ ] `docker run --rm --cap-add NET_ADMIN -v ./config:/config:ro fw-sidecar` reaches the reconcile loop (log line `reconcile ok, sleeping`).
-- [ ] `iptables -S OUTPUT` inside the sidecar matches the spec exactly (policy DROP + lo + conntrack + DNS-upstream + unbound-localhost + ipset-allowed per-port accepts).
-- [ ] `sysctl net.ipv6.conf.all.disable_ipv6` returns `1` inside the sidecar.
-- [ ] `unbound-control status` returns OK.
-- [ ] **Positive**: `dig @127.0.0.1 github.com` succeeds.
-- [ ] **Negative (DNS)**: `dig @127.0.0.1 evil.example.com` returns REFUSED.
-- [ ] **Negative (port)**: from inside the sidecar, `curl --max-time 3 http://api.anthropic.com` (port 80, not in default) fails; `curl --max-time 3 https://api.anthropic.com` (port 443) succeeds.
-- [ ] **Negative (CIDR)**: from inside the sidecar, `curl --max-time 3 https://1.1.1.1/` (not in allowlist, not DNS upstream for this test) fails.
-- [ ] `kill -HUP <pid>` triggers an immediate reconcile log line.
+- [x] `docker run --rm --cap-add NET_ADMIN -v ./config:/config:ro fw-sidecar` reaches the reconcile loop (log line `reconcile ok, sleeping`).
+- [x] `iptables -S OUTPUT` inside the sidecar matches the spec exactly (policy DROP + lo + conntrack + DNS-upstream + unbound-localhost + ipset-allowed per-port accepts).
+- [x] `sysctl net.ipv6.conf.all.disable_ipv6` returns `1` inside the sidecar.
+- [x] `unbound-control status` returns OK.
+- [x] **Positive**: `dig @127.0.0.1 github.com` succeeds.
+- [x] **Negative (DNS)**: `dig @127.0.0.1 evil.example.com` returns REFUSED.
+- [x] **Negative (port)**: tested via `nc` to an allowed IP: `github.com:80` times out (port 80 not allowed), `github.com:443` succeeds, `github.com:22` succeeds (override).
+- [x] **Negative (CIDR)**: `nc 1.1.1.1:443` (not in allowlist) times out.
+- [x] `kill -HUP <pid>` triggers an immediate reconcile log line.
 
 **Files likely involved:**
 - `fw-sidecar/entrypoint.sh`
@@ -255,6 +255,7 @@ Use `tini` as PID 1.
 - Bind mount `${WORKSPACE_PATH:-./workspace}:/workspace`.
 - Named volume `claude-config:/home/dev/.claude`.
 - **Named volume `tool-caches:/home/dev/.cargo`** (non-optional — required for sane cargo rebuilds; a sub-path is also mounted for `.npm` and `.rustup` if needed, or document that the project-local `target/` is the persistent cache).
+- **`dns: ["127.0.0.1"]`** — CRITICAL. Without this devbox's `/etc/resolv.conf` holds whatever the Docker daemon injects (host resolver, public resolvers), and all DNS from devbox bypasses the sidecar's unbound filter. This is load-bearing for the DNS-layer half of the security model.
 - `restart: on-failure:3` — a clean exit (e.g. user explicitly stopped claude) should not auto-restart; failures get 3 retries.
 
 **Acceptance criteria:**
@@ -263,6 +264,8 @@ Use `tini` as PID 1.
 - [ ] `docker inspect` for fw-sidecar returns `[NET_ADMIN] [ALL]` — `NET_RAW` absent.
 - [ ] `docker inspect claude-container-devbox-1 --format '{{.HostConfig.ReadonlyRootfs}} {{.HostConfig.SecurityOpt}}'` shows `true [no-new-privileges:true ...]`.
 - [ ] `docker inspect` shows all four tmpfs mounts on devbox.
+- [ ] `docker inspect` shows fw-sidecar has `net.ipv6.conf.all.disable_ipv6=1` sysctl.
+- [ ] `docker exec devbox cat /etc/resolv.conf` shows exactly `nameserver 127.0.0.1` (ensures DNS routes through the sidecar's unbound, not the host resolver).
 - [ ] Compose brings both services to healthy state; `docker compose ps` shows both running/healthy.
 
 **Files likely involved:**
