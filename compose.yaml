@@ -53,9 +53,11 @@ services:
   devbox:
     build: ./devbox
     container_name: devbox
-    depends_on:
-      fw-sidecar:
-        condition: service_healthy
+    # Temporarily disabled to allow fw-sidecar to stay running when
+    # unhealthy so its logs can be inspected. Restore before merging.
+    # depends_on:
+    #   fw-sidecar:
+    #     condition: service_healthy
     # Join the sidecar's netns. All egress from devbox processes
     # flows through the sidecar's iptables + unbound filter.
     network_mode: "service:fw-sidecar"
