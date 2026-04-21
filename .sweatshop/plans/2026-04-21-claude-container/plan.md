@@ -168,9 +168,9 @@ Ship with unit-testable helpers (no network/iptables calls): `parse_allowlist`, 
 **Why:** Splitting image construction into phases keeps the diff on each step reviewable.
 
 **Acceptance criteria:**
-- [ ] `docker build devbox/` succeeds.
-- [ ] `docker run --rm <img> id` (with `USER dev` set) shows uid=1000(dev) gid=1000(dev).
-- [ ] `git --version`, `cc --version`, `ssh -V`, `capsh --version` all succeed inside the image.
+- [x] `docker build devbox/` succeeds.
+- [x] `docker run --rm <img> id` (with `USER dev` set) shows uid=1000(dev) gid=1000(dev).
+- [x] `git --version`, `cc --version`, `ssh -V`, `capsh --version` all succeed inside the image.
 
 **Files likely involved:**
 - `devbox/Dockerfile`
