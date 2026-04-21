@@ -48,11 +48,10 @@ EOF
   exec sleep infinity
 fi
 
-# Probed in step 8 via `claude --help` / trial: flags go AFTER the
-# `remote-control` subcommand, not before. Verified:
-#   OK  → claude remote-control --name foo --dangerously-skip-permissions
-#   BAD → claude --dangerously-skip-permissions remote-control     # "Unknown argument: remote-control"
-#   BAD → claude --name foo remote-control                         # "Unknown argument: foo"
-exec claude remote-control \
-  --name "${DEVBOX_NAME:-devbox}" \
-  --dangerously-skip-permissions
+# `--dangerously-skip-permissions` is a TOP-LEVEL flag on Claude
+# Code v2.1.x (verified with `claude --help`). It must precede the
+# `remote-control` subcommand; placing it after triggers
+# "Unknown argument: --dangerously-skip-permissions". Subcommand
+# options (`--name`) remain after the subcommand name.
+exec claude --dangerously-skip-permissions remote-control \
+  --name "${DEVBOX_NAME:-devbox}"
