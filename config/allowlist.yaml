@@ -29,6 +29,7 @@ domains:
   - claude.ai
   - console.anthropic.com
   - downloads.claude.ai           # claude installer / updater
+  - platform.claude.com           # OAuth / Remote Control control plane
   - statsig.anthropic.com
   # Telemetry (Sentry) is intentionally NOT allowlisted by default.
   # If you hit eligibility or connectivity issues attributable to
