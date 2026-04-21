@@ -49,11 +49,17 @@ EOF
 fi
 
 # Claude Code v2.1.x exposes Remote Control as a top-level flag
-# `--remote-control [name]` (alias `--rc`) that takes the session
-# name as a positional value, rather than as a `remote-control`
-# subcommand with `--name`. Using the subcommand form fails with
-# "unknown option '--name'" on this version. Both flags are
-# top-level and must precede any subcommand (none is used here).
+# `--remote-control[=name]` (alias `--rc`) rather than as a
+# `remote-control` subcommand with `--name`. The subcommand form
+# fails with "unknown option '--name'" on this version.
+#
+# Use the `=` assignment form rather than a space-separated
+# positional. Without a TTY (devbox runs as container PID 1)
+# Claude Code treats bare positional arguments as the prompt for
+# its non-interactive `--print` mode, so
+# `claude --remote-control devbox` parses as "session devbox, no
+# name given" and then fails the --print check. `--remote-control=devbox`
+# binds the value to the flag unambiguously.
 exec claude \
   --dangerously-skip-permissions \
-  --remote-control "${DEVBOX_NAME:-devbox}"
+  --remote-control="${DEVBOX_NAME:-devbox}"
