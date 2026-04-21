@@ -28,6 +28,7 @@ domains:
   - api.anthropic.com
   - claude.ai
   - console.anthropic.com
+  - downloads.claude.ai           # claude installer / updater
   - statsig.anthropic.com
   # Telemetry (Sentry) is intentionally NOT allowlisted by default.
   # If you hit eligibility or connectivity issues attributable to

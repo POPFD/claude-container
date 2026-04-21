@@ -70,3 +70,24 @@ RUN curl -fsSL https://astral.sh/uv/install.sh | sh \
 # Persist PATH/env for interactive shells (docker exec -it ... bash -l).
 RUN printf '\n# devbox toolchain env\nexport PATH="/home/dev/.cargo/bin:/home/dev/.local/bin:$PATH"\nexport UV_NO_UPDATE_CHECK=1\n' >> /home/dev/.bashrc \
     && printf '\n# devbox toolchain env\nexport PATH="/home/dev/.cargo/bin:/home/dev/.local/bin:$PATH"\nexport UV_NO_UPDATE_CHECK=1\n' >> /home/dev/.profile
+
+# --------------------------------------------------------------------
+# Claude Code CLI. Installs to ~/.local/bin/claude (symlink) and
+# ~/.local/share/claude/versions/<ver>/. No runtime self-update —
+# rootfs is read-only at runtime and we never call the installer
+# again.
+# --------------------------------------------------------------------
+RUN curl -fsSL https://claude.ai/install.sh -o /tmp/claude-install.sh \
+    && bash /tmp/claude-install.sh stable \
+    && rm /tmp/claude-install.sh \
+    && claude --version
+
+# --------------------------------------------------------------------
+# Entrypoint (root → gosu dev). See devbox/entrypoint.sh.
+# --------------------------------------------------------------------
+USER root
+COPY entrypoint.sh /entrypoint.sh
+COPY devbox-main.sh /devbox-main.sh
+RUN chmod +x /entrypoint.sh /devbox-main.sh
+
+ENTRYPOINT ["/usr/bin/tini", "--", "/entrypoint.sh"]
