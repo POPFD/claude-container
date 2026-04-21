@@ -102,12 +102,12 @@ Ship with unit-testable helpers (no network/iptables calls): `parse_allowlist`, 
 **Why:** The reconciler is the most complex piece. Separating pure logic (parse/generate) from side effects (ipset/unbound calls) keeps it testable.
 
 **Acceptance criteria:**
-- [ ] `python3 reconcile.py --dry-run --config ../config/allowlist.yaml` emits JSON to stdout with keys `unbound_conf`, `ipset_v4`, `ipset_v6`, `ports`, exits 0.
-- [ ] `fw-sidecar/tests/test_reconcile.py` exercises `parse_allowlist`, `build_unbound_conf`, `build_ipset_members` against a fixture YAML and passes under `python3 -m pytest`.
-- [ ] **Wildcard test**: fixture with only `*.example.com` produces `build_ipset_members() == {v4: [], v6: []}` AND `build_unbound_conf()` contains a `forward-zone: name: "example.com."` entry.
-- [ ] **Port override test**: fixture with `ports.overrides` for `github.com=[22,443]` is present in the `ports` JSON output keyed by the literal domain.
-- [ ] **DoT test**: fixture with `DNS_UPSTREAM_TLS=1` emits `forward-tls-upstream: yes` and upstream port 853.
-- [ ] **Retry test**: when resolution fails, a WARN log line is emitted and the script exits 0 if at least one domain resolved; exits 1 only if *all* resolutions fail.
+- [x] `python3 reconcile.py --dry-run --config ../config/allowlist.yaml` emits JSON to stdout with keys `unbound_conf`, `ipset_v4`, `ipset_v6`, `ports`, exits 0.
+- [x] `fw-sidecar/tests/test_reconcile.py` exercises `parse_allowlist`, `build_unbound_conf`, `build_ipset_members` against a fixture YAML and passes under `python3 -m pytest`.
+- [x] **Wildcard test**: fixture with only `*.example.com` produces `build_ipset_members() == {v4: [], v6: []}` AND `build_unbound_conf()` contains a `forward-zone: name: "example.com."` entry.
+- [x] **Port override test**: fixture with `ports.overrides` for `github.com=[22,443]` is present in the `ports` JSON output keyed by the literal domain.
+- [x] **DoT test**: fixture with `DNS_UPSTREAM_TLS=1` emits `forward-tls-upstream: yes` and upstream port 853.
+- [x] **Retry test**: when resolution fails, a WARN log line is emitted and the script exits 0 if at least one domain resolved; exits 1 only if *all* resolutions fail.
 
 **Files likely involved:**
 - `fw-sidecar/reconcile.py`
@@ -358,6 +358,17 @@ README contents:
 9. `compose.yaml` (NET_ADMIN only, `.config` tmpfs, on-failure:3, mandatory tool-caches volume)
 10. Operator scripts (`--nuke` fence on down.sh)
 11. E2E verification + README (incl. threat model, persistence, recovery)
+
+## Auth invariant (NOT a deferral — a correctness constraint)
+
+Remote Control requires a **full-scope OAuth session token**, obtained
+via interactive `claude /login`. The long-lived tokens produced by
+`claude setup-token` or set via `CLAUDE_CODE_OAUTH_TOKEN` are
+**inference-only** and will fail with "Remote Control requires a
+full-scope login token." Do NOT expose `CLAUDE_CODE_OAUTH_TOKEN` in
+`.env.example` or the entrypoint. First-run auth is always interactive
+(`docker exec -it devbox claude /login`), and the resulting
+credentials persist in the `claude-config` named volume.
 
 ## Known deferrals (explicitly out of scope)
 

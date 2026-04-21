@@ -1,0 +1,14 @@
+# Test fixture — NOT the production allowlist. Designed to exercise
+# parse/build helpers: plain domain, wildcard, CIDR, port override.
+domains:
+  - example.com
+  - api.example.com
+  - "*.wildcard.example.com"
+cidrs:
+  - 192.0.2.0/24
+  - 2001:db8::/32
+ports:
+  default: [443]
+  overrides:
+    - match: example.com
+      ports: [22, 443]

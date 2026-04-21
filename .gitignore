@@ -9,3 +9,8 @@ workspace/*
 
 # Claude Code local session settings (per-operator, not shared).
 .claude/
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/

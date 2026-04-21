@@ -10,6 +10,7 @@ RUN apk add --no-cache \
         ipset \
         openssl \
         python3 \
+        py3-pytest \
         py3-yaml \
         tini \
         unbound \
