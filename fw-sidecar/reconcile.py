@@ -281,17 +281,48 @@ def reload_unbound() -> None:
     subprocess.run(["unbound-control", "reload"], check=True)
 
 
+def _is_bogon(obj) -> bool:
+    """Return True for addresses/networks that must never appear in an
+    egress allowlist: loopback, private (RFC1918 / ULA), link-local
+    (169.254/16 — cloud metadata endpoints live here — and fe80::/10),
+    multicast, unspecified (0.0.0.0 / ::), reserved.
+
+    Blocks the class of attack where a compromised upstream resolver
+    (or a hostile CNAME) answers an allowlisted name with, e.g.,
+    169.254.169.254 and the reconciler then programs that into the
+    egress ipset, granting the rogue process access to the cloud
+    metadata service or to host-side services on the docker bridge.
+    """
+    # Deliberately NOT including `is_reserved`: that covers documentation
+    # ranges (TEST-NET-1/2/3, 240/4 future-use) which don't route on the
+    # public internet and are common in examples/fixtures. Blocking them
+    # provides no real egress protection and breaks legitimate test
+    # configurations.
+    return (
+        obj.is_loopback
+        or obj.is_private
+        or obj.is_link_local
+        or obj.is_multicast
+        or obj.is_unspecified
+    )
+
+
 def _valid_member(addr: str, v6: bool) -> bool:
-    """Accept bare IP or CIDR; reject hostnames. `hash:net` takes both
-    but rejects non-IP strings, which would crash the reconcile."""
+    """Accept bare IP or CIDR; reject hostnames, cross-family entries,
+    and bogons (see `_is_bogon`). `hash:net` would accept any syntactic
+    IP/CIDR, so all policy filtering happens here."""
     try:
         if "/" in addr:
             net = ipaddress.ip_network(addr, strict=False)
-            return isinstance(net,
-                (ipaddress.IPv6Network if v6 else ipaddress.IPv4Network))
+            if not isinstance(net,
+                (ipaddress.IPv6Network if v6 else ipaddress.IPv4Network)):
+                return False
+            return not _is_bogon(net)
         ip = ipaddress.ip_address(addr)
-        return isinstance(ip,
-            (ipaddress.IPv6Address if v6 else ipaddress.IPv4Address))
+        if not isinstance(ip,
+            (ipaddress.IPv6Address if v6 else ipaddress.IPv4Address)):
+            return False
+        return not _is_bogon(ip)
     except ValueError:
         return False
 
@@ -309,8 +340,14 @@ def apply_ipsets(members: dict[str, list[str]]) -> None:
         subprocess.run(["ipset", "flush", tmp], check=True)
         for addr in members[family]:
             if not _valid_member(addr, is_v6):
-                log.warning("skipping invalid %s ipset member: %r",
-                            family, addr)
+                log.warning(
+                    "SECURITY: dropping %s ipset candidate %r "
+                    "(bogon / wrong family / unparseable). A compromised "
+                    "or misconfigured upstream resolver may be attempting "
+                    "to point an allowlisted name at a sensitive internal "
+                    "address (metadata, RFC1918, loopback).",
+                    family, addr,
+                )
                 continue
             subprocess.run(["ipset", "add", "-exist", tmp, addr], check=True)
         subprocess.run(["ipset", "swap", tmp, set_name], check=True)

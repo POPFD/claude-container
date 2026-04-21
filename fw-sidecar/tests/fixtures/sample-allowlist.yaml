@@ -5,8 +5,11 @@ domains:
   - api.example.com
   - "*.wildcard.example.com"
 cidrs:
-  - 192.0.2.0/24
-  - 2001:db8::/32
+  # Public-internet-ish ranges so the bogon filter in _valid_member
+  # doesn't drop them. Python's ipaddress marks TEST-NET and 2001:db8::
+  # as private/reserved, which the filter blocks.
+  - 93.184.216.0/24
+  - 2606:4700::/32
 ports:
   default: [443]
   overrides:

@@ -40,7 +40,11 @@ services:
       - 127.0.0.1
     environment:
       DNS_UPSTREAM: "${DNS_UPSTREAM:-1.1.1.1}"
-      DNS_UPSTREAM_TLS: "${DNS_UPSTREAM_TLS:-0}"
+      # Default on: without DoT the upstream query/response is on-path
+      # visible, which lets an on-path attacker read (exfil channel via
+      # qnames in a wildcard zone) or *poison* the response so a
+      # non-bogon attacker-owned IP lands in the egress ipset.
+      DNS_UPSTREAM_TLS: "${DNS_UPSTREAM_TLS:-1}"
     healthcheck:
       # Test the filter itself, not external reachability: unbound
       # must be up AND must REFUSE an out-of-allowlist lookup.
@@ -78,8 +82,13 @@ services:
     tty: true
     stdin_open: true
     tmpfs:
-      - /tmp
-      - /run
+      # Bound the tmpfs sizes explicitly. Without `size=`, tmpfs
+      # defaults to 50% of host RAM per mount, which a rogue
+      # in-container process can exhaust to OOM the host. These caps
+      # are within the container's own mem_limit, so they can't exceed
+      # the container's memory budget anyway.
+      - /tmp:size=256m
+      - /run:size=32m
     pids_limit: "${PIDS_LIMIT:-1024}"
     mem_limit: "${MEM_LIMIT:-8g}"
     ulimits:

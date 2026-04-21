@@ -101,12 +101,24 @@ iptables -A OUTPUT -o lo -j ACCEPT
 iptables -A INPUT  -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
 iptables -A OUTPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
 
-# DNS: sidecar → upstream (so the initial reconcile's `dig` can reach
-# the resolver before we've set up the local unbound path).
-iptables -A OUTPUT -d "${DNS_UPSTREAM}" -p udp --dport 53 -j ACCEPT
-iptables -A OUTPUT -d "${DNS_UPSTREAM}" -p tcp --dport 53 -j ACCEPT
+# DNS: sidecar → upstream.
+#
+# CRITICAL: restrict these rules to the sidecar's root UID (0) via
+# `-m owner --uid-owner 0`. Without this, devbox shares the sidecar's
+# netns and so ANY process in either container matching `-d UPSTREAM
+# -p udp --dport 53` would be accepted — a rogue devbox process
+# (running as uid 1000) could then run `dig @${DNS_UPSTREAM} anything`
+# and bypass the local unbound default-refuse entirely, defeating the
+# DNS allowlist. The owner match pins this egress to sidecar-internal
+# callers (unbound, and the reconcile's `dig` subprocess, both run as
+# root here). Devbox's dev uid (1000) cannot match.
+iptables -A OUTPUT -d "${DNS_UPSTREAM}" -p udp --dport 53 \
+    -m owner --uid-owner 0 -j ACCEPT
+iptables -A OUTPUT -d "${DNS_UPSTREAM}" -p tcp --dport 53 \
+    -m owner --uid-owner 0 -j ACCEPT
 if [[ "${DNS_UPSTREAM_TLS}" == "1" ]]; then
-  iptables -A OUTPUT -d "${DNS_UPSTREAM}" -p tcp --dport 853 -j ACCEPT
+  iptables -A OUTPUT -d "${DNS_UPSTREAM}" -p tcp --dport 853 \
+      -m owner --uid-owner 0 -j ACCEPT
 fi
 
 # DNS: devbox (shared netns) → local unbound on 127.0.0.1:53.
@@ -176,6 +188,7 @@ done
 # --------------------------------------------------------------------
 
 set +e
+# shellcheck disable=SC2046 # intentional word-splitting: $() emits zero or one flag
 python3 /reconcile.py \
   --config "${CONFIG}" \
   --upstream "${DNS_UPSTREAM}" \
@@ -220,6 +233,7 @@ while :; do
     fi
   done
   set +e
+  # shellcheck disable=SC2046 # intentional word-splitting: $() emits zero or one flag
   python3 /reconcile.py \
     --config "${CONFIG}" \
     --upstream "${DNS_UPSTREAM}" \

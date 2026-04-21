@@ -37,8 +37,8 @@ def test_parse_splits_wildcard_from_exact(sample):
 
 
 def test_parse_extracts_cidrs(sample):
-    assert "192.0.2.0/24" in sample.cidrs_v4
-    assert "2001:db8::/32" in sample.cidrs_v6
+    assert "93.184.216.0/24" in sample.cidrs_v4
+    assert "2606:4700::/32" in sample.cidrs_v6
 
 
 def test_parse_port_overrides(sample):
@@ -64,8 +64,8 @@ def test_build_ipset_members_wildcards_have_no_ips():
     assert "93.184.216.34" in members["v4"]
     assert "93.184.216.35" in members["v4"]
     # CIDRs from cidrs: section
-    assert "192.0.2.0/24" in members["v4"]
-    assert "2001:db8::/32" in members["v6"]
+    assert "93.184.216.0/24" in members["v4"]
+    assert "2606:4700::/32" in members["v6"]
     # Wildcard base MUST NOT appear
     assert "wildcard.example.com" not in members["v4"]
     # Stub returned nothing for wildcard suffix — verify resolver was
@@ -239,11 +239,38 @@ def test_parse_dig_output_strips_cname_hostnames():
 
 def test_valid_member_rejects_hostnames_and_cross_family():
     assert reconcile._valid_member("1.2.3.4", v6=False)
-    assert reconcile._valid_member("192.0.2.0/24", v6=False)
-    assert not reconcile._valid_member("2001:db8::1", v6=False)  # v6 in v4 set
-    assert reconcile._valid_member("2001:db8::1", v6=True)
+    assert reconcile._valid_member("93.184.216.0/24", v6=False)
+    assert not reconcile._valid_member("2606:4700::1", v6=False)  # v6 in v4 set
     assert not reconcile._valid_member("example.com", v6=False)
     assert not reconcile._valid_member("foo.bar.", v6=False)
+
+
+def test_valid_member_rejects_bogons_v4():
+    # Metadata service — must never land in the ipset.
+    assert not reconcile._valid_member("169.254.169.254", v6=False)
+    # Loopback.
+    assert not reconcile._valid_member("127.0.0.1", v6=False)
+    # RFC1918.
+    assert not reconcile._valid_member("10.0.0.1", v6=False)
+    assert not reconcile._valid_member("172.16.1.1", v6=False)
+    assert not reconcile._valid_member("192.168.1.1", v6=False)
+    # Unspecified.
+    assert not reconcile._valid_member("0.0.0.0", v6=False)
+    # Multicast.
+    assert not reconcile._valid_member("224.0.0.1", v6=False)
+    # CIDR form must also be rejected.
+    assert not reconcile._valid_member("10.0.0.0/8", v6=False)
+    assert not reconcile._valid_member("169.254.0.0/16", v6=False)
+
+
+def test_valid_member_rejects_bogons_v6():
+    assert not reconcile._valid_member("::1", v6=True)           # loopback
+    assert not reconcile._valid_member("fe80::1", v6=True)       # link-local
+    assert not reconcile._valid_member("fc00::1", v6=True)       # ULA
+    assert not reconcile._valid_member("ff02::1", v6=True)       # multicast
+    assert not reconcile._valid_member("::", v6=True)            # unspecified
+    # A normal public v6 still passes.
+    assert reconcile._valid_member("2606:4700:4700::1111", v6=True)
 
 
 def test_parse_dig_output_empty():

@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  unit-tests:
+    name: reconcile.py unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pytest pyyaml
+      - run: python -m pytest fw-sidecar/tests/ -v
+
+  shellcheck:
+    name: shellcheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: shellcheck all scripts
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y shellcheck
+          shellcheck --severity=warning \
+                     scripts/*.sh \
+                     fw-sidecar/entrypoint.sh \
+                     devbox/devbox-main.sh
+
+  compose-validate:
+    name: docker compose config valid
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          cp .env.example .env
+          docker compose config >/dev/null
+
+  integration-pentest:
+    # Brings the stack up and runs scripts/pentest.sh against it. The
+    # devbox container sleeps without Claude credentials (expected in
+    # CI), but `docker exec` into a sleeping container still works and
+    # the pentest probes network/namespace posture, not Claude itself.
+    name: integration pentest
+    runs-on: ubuntu-latest
+    needs: [unit-tests, shellcheck, compose-validate]
+    steps:
+      - uses: actions/checkout@v4
+      - name: bring stack up
+        run: |
+          cp .env.example .env
+          ./scripts/up.sh
+          # Wait for sidecar healthy + devbox running. `up.sh` already
+          # blocks on healthy sidecar, but devbox may still be
+          # initialising (sleep-infinity because no creds).
+          for _ in $(seq 1 30); do
+            state=$(docker inspect -f '{{.State.Status}}' devbox 2>/dev/null || true)
+            [[ "$state" == "running" ]] && break
+            sleep 1
+          done
+          docker ps
+      - name: run pentest harness
+        run: ./scripts/pentest.sh
+      - name: dump sidecar logs on failure
+        if: failure()
+        run: |
+          echo '=== fw-sidecar logs ==='
+          docker logs fw-sidecar || true
+          echo '=== devbox logs ==='
+          docker logs devbox || true
+      - name: bring stack down
+        if: always()
+        run: ./scripts/down.sh || true
