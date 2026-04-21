@@ -72,6 +72,14 @@ services:
       # the rootfs read-only while letting tools write their caches.
       - "/home/dev/.cache:uid=1000,gid=1000,mode=755"
       - "/home/dev/.config:uid=1000,gid=1000,mode=755"
+      # `.ssh` for known_hosts / control sockets. Mode 700 matches
+      # what ssh expects; tighter than the caches.
+      - "/home/dev/.ssh:uid=1000,gid=1000,mode=700"
+      # `.npm` cacache for npm/pnpm. Tmpfs rather than a named
+      # volume — cache is cheap to rebuild, and project-local
+      # `node_modules` under the bind-mounted /workspace already
+      # provides the persistent side.
+      - "/home/dev/.npm:uid=1000,gid=1000,mode=755"
     pids_limit: "${PIDS_LIMIT:-1024}"
     mem_limit: "${MEM_LIMIT:-8g}"
     ulimits:

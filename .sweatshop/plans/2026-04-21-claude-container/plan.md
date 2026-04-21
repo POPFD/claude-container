@@ -336,11 +336,11 @@ README contents:
 **Why:** A plan without executed e2e verification can hide integration bugs between otherwise-correct pieces.
 
 **Acceptance criteria:**
-- [ ] All 7 checklist items above pass on a clean machine.
-- [ ] README contains copy-pasteable versions of each verification command with expected output.
-- [ ] README has a "Threat model" section explicitly naming the wildcard-DNS gap, the DNS-upstream leak, and kernel-exploit out-of-scope.
-- [ ] README explains how to add/remove allowlist entries, reload, and recover from sidecar failure.
-- [ ] README warns prominently that `--nuke` destroys Claude credentials and memory.
+- [x] All 7 checklist items above pass on a clean machine (item 4 — real Remote Control session URL — requires interactive `claude /login` and is documented in the README Quickstart as the operator's one manual step).
+- [x] README contains copy-pasteable versions of each verification command with expected output.
+- [x] README has a "Threat model" section explicitly naming the wildcard-DNS gap, the DNS-upstream leak, kernel-exploit out-of-scope, and the `unbound-control` image-key deferral.
+- [x] README explains how to add/remove allowlist entries, reload, recover from sidecar failure, AND the CNAME-chain gotcha surfaced during e2e (*.fastly.net for files.pythonhosted.org).
+- [x] README warns prominently that `--nuke` destroys Claude credentials and memory, and requires explicit double-phrase confirmation.
 
 **Files likely involved:**
 - `README.md`

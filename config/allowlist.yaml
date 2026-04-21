@@ -60,9 +60,16 @@ domains:
   # Node / npm
   - registry.npmjs.org
 
-  # Python / PyPI
+  # Python / PyPI. files.pythonhosted.org is a CNAME to fastly.net,
+  # so we also need a DNS-layer allow for the fastly suffix. The
+  # IP-layer ipset only contains fastly IPs pulled from pypi /
+  # pythonhosted A-record chains, so adding the wildcard doesn't
+  # broaden IP egress — it only permits unbound to chase the CNAME.
+  # (Same pattern applies to many CDN-backed services; add targets
+  # here as needed.)
   - pypi.org
   - files.pythonhosted.org
+  - "*.fastly.net"
 
 cidrs: []
 
