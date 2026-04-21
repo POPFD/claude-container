@@ -48,6 +48,33 @@ EOF
   exec sleep infinity
 fi
 
+# Pre-accept Claude Code's Bypass Permissions warning. Without
+# this flag set in ~/.claude.json, the first launch with
+# `--dangerously-skip-permissions` blocks on an interactive
+# "Yes, I accept" prompt that has no one to answer it here
+# (devbox is a daemonised Remote Control server, not a user
+# session). Setting bypassPermissionsModeAccepted:true persists
+# the acceptance the same way a user click would. We only write
+# if the key is missing so operator-made edits to other fields
+# are preserved.
+CLAUDE_JSON=/home/dev/.claude.json
+if ! grep -q '"bypassPermissionsModeAccepted"' "${CLAUDE_JSON}" 2>/dev/null; then
+  python3 - "${CLAUDE_JSON}" <<'PY'
+import json, os, sys
+p = sys.argv[1]
+try:
+    with open(p) as f:
+        cfg = json.load(f)
+except (FileNotFoundError, json.JSONDecodeError):
+    cfg = {}
+cfg["bypassPermissionsModeAccepted"] = True
+tmp = p + ".tmp"
+with open(tmp, "w") as f:
+    json.dump(cfg, f, indent=2)
+os.replace(tmp, p)
+PY
+fi
+
 # Claude Code v2.1.x exposes Remote Control as a top-level flag
 # `--remote-control[=name]` (alias `--rc`) rather than as a
 # `remote-control` subcommand with `--name`. The subcommand form
