@@ -190,10 +190,10 @@ Ship with unit-testable helpers (no network/iptables calls): `parse_allowlist`, 
 **Why:** Getting language toolchains right (user-owned, on-PATH, no self-update attempts under read-only rootfs) is fiddly; isolating this step lets the reviewer focus on install mechanics.
 
 **Acceptance criteria:**
-- [ ] `docker run --rm <img> bash -lc "node --version && pnpm --version && rustc --version && cargo --version && cargo clippy --version && rustfmt --version && python3 --version && uv --version"` succeeds.
-- [ ] None of the toolchains require root to run.
-- [ ] Rustup and cargo live under `/home/dev/`, not `/root/` or `/opt/`.
-- [ ] Running with `--read-only` (test harness): `docker run --rm --read-only --tmpfs /tmp --tmpfs /home/dev/.cache <img> bash -lc "node -e 'console.log(1)'"` succeeds — no tool tries to write outside tmpfs/home.
+- [x] `docker run --rm <img> bash -lc "node --version && pnpm --version && rustc --version && cargo --version && cargo clippy --version && rustfmt --version && python3 --version && uv --version"` succeeds.
+- [x] None of the toolchains require root to run.
+- [x] Rustup and cargo live under `/home/dev/`, not `/root/` or `/opt/`.
+- [x] Running with `--read-only` (test harness): `docker run --rm --read-only --tmpfs /tmp --tmpfs /home/dev/.cache <img> bash -lc "node -e 'console.log(1)'"` succeeds — no tool tries to write outside tmpfs/home.
 
 **Files likely involved:**
 - `devbox/Dockerfile`
