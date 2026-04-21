@@ -52,11 +52,11 @@ These are explicitly in scope but not fully closed — they belong in the README
 **Why:** Downstream code (reconcile script, unbound config generator) needs a concrete schema to parse. Locking the schema now means step 4 can be written against a real example.
 
 **Acceptance criteria:**
-- [ ] `config/allowlist.yaml` parses as valid YAML.
-- [ ] Contains top-level keys `domains`, `cidrs`, `ports` as agreed.
-- [ ] `ports.default` = `[443]`; `ports.overrides` includes a `github.com`-class entry allowing `[22, 443]`.
-- [ ] At least one wildcard domain entry (e.g. `*.githubusercontent.com`) present.
-- [ ] Inline comments describe each field and explicitly call out that wildcard entries are enforced at DNS level only, not IP level.
+- [x] `config/allowlist.yaml` parses as valid YAML.
+- [x] Contains top-level keys `domains`, `cidrs`, `ports` as agreed.
+- [x] `ports.default` = `[443]`; `ports.overrides` includes a `github.com`-class entry allowing `[22, 443]`.
+- [x] At least one wildcard domain entry (e.g. `*.githubusercontent.com`) present.
+- [x] Inline comments describe each field and explicitly call out that wildcard entries are enforced at DNS level only, not IP level.
 
 **Files likely involved:**
 - `config/allowlist.yaml`

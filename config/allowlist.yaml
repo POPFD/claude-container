@@ -1,0 +1,72 @@
+# Egress allowlist consumed by the firewall sidecar (fw-sidecar).
+#
+# Schema:
+#   domains: list of hostnames. Non-wildcard entries are resolved
+#     periodically and the resulting A/AAAA addresses are inserted into
+#     the iptables `allowed_v4`/`allowed_v6` ipsets. Wildcard entries
+#     (prefix `*.`) are enforced at DNS level ONLY — the base suffix is
+#     added to unbound as a forward-zone; no IP pinning is performed,
+#     because we cannot enumerate the full subtree. This means any
+#     subdomain that the upstream resolver will answer for is
+#     reachable. Prefer non-wildcard entries when practical.
+#
+#   cidrs: raw IPv4/IPv6 ranges inserted directly into the ipsets.
+#     Use for services that don't have stable DNS, or to pin specific
+#     provider ranges.
+#
+#   ports:
+#     default: list of destination TCP ports allowed for every
+#       allowlisted destination (unless overridden).
+#     overrides: per-domain port lists. Matched by exact domain
+#       string; wildcards in overrides are not supported.
+#
+# After editing this file, run `./scripts/reload.sh` to trigger an
+# immediate reconcile.
+
+domains:
+  # Anthropic / Claude Code
+  - api.anthropic.com
+  - claude.ai
+  - console.anthropic.com
+  - statsig.anthropic.com
+  # Telemetry (Sentry) is intentionally NOT allowlisted by default.
+  # If you hit eligibility or connectivity issues attributable to
+  # telemetry, add the correct ingest host (typically a wildcard like
+  # `*.ingest.sentry.io`) — the bare `sentry.io` is not what the SDK
+  # actually POSTs to.
+
+  # GitHub (code hosting, API, raw content, container registry)
+  - github.com
+  - api.github.com
+  - codeload.github.com
+  - objects.githubusercontent.com
+  # NOTE: the githubusercontent.com subtree is very broad (user-uploaded
+  # release artifacts, etc.). This wildcard is a known DNS-exfil
+  # surface — see README threat model. Narrow to specific subdomains
+  # (e.g. raw.githubusercontent.com) if your workflow allows.
+  - "*.githubusercontent.com"
+  - ghcr.io
+
+  # Rust (index + crates + rustup installer; `static.rust-lang.org` is
+  # only needed at image build time for rustup self-install and is
+  # intentionally excluded from the runtime allowlist — the toolchain
+  # never self-updates at runtime because the rootfs is read-only).
+  - crates.io
+  - static.crates.io
+  - index.crates.io
+  - sh.rustup.rs
+
+  # Node / npm
+  - registry.npmjs.org
+
+  # Python / PyPI
+  - pypi.org
+  - files.pythonhosted.org
+
+cidrs: []
+
+ports:
+  default: [443]
+  overrides:
+    - match: github.com
+      ports: [22, 443]
