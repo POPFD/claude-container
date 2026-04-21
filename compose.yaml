@@ -69,6 +69,14 @@ services:
     security_opt:
       - no-new-privileges:true
     read_only: true
+    # Claude Code v2.1.x auto-enables its non-interactive --print
+    # mode when stdin/stdout are not a TTY, which makes the
+    # Remote Control server exit immediately with "Input must be
+    # provided either through stdin or as a prompt argument".
+    # Allocate a PTY + keep stdin open so the CLI stays in its
+    # interactive/server path under `claude --remote-control`.
+    tty: true
+    stdin_open: true
     tmpfs:
       - /tmp
       - /run
