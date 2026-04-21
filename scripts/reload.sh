@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
-# Force the firewall sidecar to re-read config/allowlist.yaml
-# immediately. Sends SIGHUP to the entrypoint (PID 1 inside the
-# sidecar) which interrupts the reconcile loop's sleep.
+# Rebuild the firewall sidecar image and recreate the sidecar
+# container so edits to config/allowlist.yaml take effect. The
+# allowlist is baked into the image at build time (rather than
+# bind-mounted), so an image rebuild is required on reload.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-exec docker compose kill -s HUP fw-sidecar
+docker compose build fw-sidecar
+exec docker compose up -d --no-deps fw-sidecar

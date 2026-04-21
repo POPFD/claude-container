@@ -43,8 +43,10 @@ Day-to-day:
 - `./scripts/shell.sh` — drop into a dev shell as `dev` in
   `/workspace`. From here you can `cargo build`, `pnpm install`,
   `pytest`, etc.
-- `./scripts/reload.sh` — reload the egress allowlist after
-  editing `config/allowlist.yaml`.
+- `./scripts/reload.sh` — rebuild the sidecar image and reload the
+  egress allowlist after editing `config/allowlist.yaml`. The
+  allowlist is baked into the sidecar image at build time, so an
+  image rebuild is required to pick up edits.
 - `./scripts/down.sh` — stop the stack. Named volumes persist.
 - `./scripts/down.sh --nuke` — destroy the stack AND the
   `claude-config` + `tool-caches` volumes. You lose the OAuth
@@ -76,8 +78,9 @@ After editing:
 ```bash
 ./scripts/reload.sh
 ```
-The sidecar re-resolves domains, rebuilds ipsets, and reloads
-unbound within ~5 seconds.
+This rebuilds the sidecar image (the allowlist is baked in at
+build time), recreates the sidecar container, re-resolves
+domains, rebuilds ipsets, and reloads unbound.
 
 ### Adding CDN-backed services
 

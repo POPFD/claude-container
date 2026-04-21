@@ -1,6 +1,13 @@
 services:
   fw-sidecar:
-    build: ./fw-sidecar
+    build:
+      # Context is the repo root so the Dockerfile can COPY the
+      # top-level config/ tree (notably config/allowlist.yaml) into
+      # the image. This avoids a bind mount of ./config into the
+      # container, which failed on Portainer stacks whose compose
+      # working dir does not contain the full repo.
+      context: .
+      dockerfile: fw-sidecar/Dockerfile
     container_name: fw-sidecar
     restart: unless-stopped
     cap_drop: [ALL]
@@ -34,8 +41,6 @@ services:
     environment:
       DNS_UPSTREAM: "${DNS_UPSTREAM:-1.1.1.1}"
       DNS_UPSTREAM_TLS: "${DNS_UPSTREAM_TLS:-0}"
-    volumes:
-      - ./config:/config:ro
     healthcheck:
       # Test the filter itself, not external reachability: unbound
       # must be up AND must REFUSE an out-of-allowlist lookup.
@@ -53,11 +58,9 @@ services:
   devbox:
     build: ./devbox
     container_name: devbox
-    # Temporarily disabled to allow fw-sidecar to stay running when
-    # unhealthy so its logs can be inspected. Restore before merging.
-    # depends_on:
-    #   fw-sidecar:
-    #     condition: service_healthy
+    depends_on:
+      fw-sidecar:
+        condition: service_healthy
     # Join the sidecar's netns. All egress from devbox processes
     # flows through the sidecar's iptables + unbound filter.
     network_mode: "service:fw-sidecar"

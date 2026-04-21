@@ -4,7 +4,8 @@
 #
 # Expected runtime:
 #   - NET_ADMIN capability (for iptables/ip6tables/ipset/sysctl).
-#   - /config/allowlist.yaml bind-mounted read-only.
+#   - /etc/fw-sidecar/allowlist.yaml baked into the image at build
+#     time from repo config/allowlist.yaml. Override with CONFIG env.
 #   - DNS_UPSTREAM (default 1.1.1.1) and DNS_UPSTREAM_TLS (0/1) env vars.
 #
 # Signals:
@@ -14,7 +15,7 @@ set -euo pipefail
 
 DNS_UPSTREAM="${DNS_UPSTREAM:-1.1.1.1}"
 DNS_UPSTREAM_TLS="${DNS_UPSTREAM_TLS:-0}"
-CONFIG="${CONFIG:-/config/allowlist.yaml}"
+CONFIG="${CONFIG:-/etc/fw-sidecar/allowlist.yaml}"
 UNBOUND_CONF_D="/etc/unbound/unbound.conf.d"
 UNBOUND_ALLOWLIST_CONF="${UNBOUND_CONF_D}/allowlist.conf"
 RECONCILE_INTERVAL="${RECONCILE_INTERVAL:-60}"
