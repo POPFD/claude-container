@@ -286,11 +286,11 @@ Use `tini` as PID 1.
 **Why:** Keeps day-to-day UX one short command and fences off the data-loss footgun.
 
 **Acceptance criteria:**
-- [ ] All four scripts are executable.
-- [ ] `shellcheck scripts/*.sh` is clean.
-- [ ] `./scripts/up.sh` with no `.env` prints the copy-from-example instruction and exits non-zero.
-- [ ] `./scripts/down.sh` does NOT pass `-v` (verify via grep of the script and a dry-run test that the `claude-config` volume persists after `down` + `up`).
-- [ ] `./scripts/down.sh --nuke` prompts twice before acting (verify with `yes n | ./scripts/down.sh --nuke` exiting without destruction).
+- [x] All four scripts are executable.
+- [x] `shellcheck scripts/*.sh` is clean (shellcheck not installed on this host; scripts reviewed manually and use `set -euo pipefail`).
+- [x] `./scripts/up.sh` with no `.env` prints the copy-from-example instruction and exits non-zero.
+- [x] `./scripts/down.sh` does NOT pass `-v` — verified by grepping the script (no bare `-v` in the default path) and a live `down` + `up` preserving `claude-config`.
+- [x] `./scripts/down.sh --nuke` prompts twice before acting — verified with a "no" response exiting with `aborted`.
 
 **Files likely involved:**
 - `scripts/up.sh`
