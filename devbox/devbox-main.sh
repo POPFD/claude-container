@@ -48,10 +48,12 @@ EOF
   exec sleep infinity
 fi
 
-# `--dangerously-skip-permissions` is a TOP-LEVEL flag on Claude
-# Code v2.1.x (verified with `claude --help`). It must precede the
-# `remote-control` subcommand; placing it after triggers
-# "Unknown argument: --dangerously-skip-permissions". Subcommand
-# options (`--name`) remain after the subcommand name.
-exec claude --dangerously-skip-permissions remote-control \
-  --name "${DEVBOX_NAME:-devbox}"
+# Claude Code v2.1.x exposes Remote Control as a top-level flag
+# `--remote-control [name]` (alias `--rc`) that takes the session
+# name as a positional value, rather than as a `remote-control`
+# subcommand with `--name`. Using the subcommand form fails with
+# "unknown option '--name'" on this version. Both flags are
+# top-level and must precede any subcommand (none is used here).
+exec claude \
+  --dangerously-skip-permissions \
+  --remote-control "${DEVBOX_NAME:-devbox}"
