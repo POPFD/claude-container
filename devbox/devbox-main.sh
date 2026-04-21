@@ -48,32 +48,49 @@ EOF
   exec sleep infinity
 fi
 
-# Pre-accept Claude Code's Bypass Permissions warning. Without
-# this flag set in ~/.claude.json, the first launch with
-# `--dangerously-skip-permissions` blocks on an interactive
-# "Yes, I accept" prompt that has no one to answer it here
-# (devbox is a daemonised Remote Control server, not a user
-# session). Setting bypassPermissionsModeAccepted:true persists
-# the acceptance the same way a user click would. We only write
-# if the key is missing so operator-made edits to other fields
-# are preserved.
+# Pre-accept Claude Code's Bypass Permissions warning. On v2.1.x
+# the key checked at prompt time is
+# `skipDangerousModePermissionPrompt` in the user settings file
+# (~/.claude/settings.json). A legacy `bypassPermissionsModeAccepted`
+# in ~/.claude.json is auto-migrated to that key on startup, but
+# the migration apparently does not complete before the prompt
+# is rendered in a non-TTY-driven Remote Control launch, so the
+# daemon stalls. Writing the migrated key directly bypasses the
+# race. Both keys are set: the target key for the running session,
+# and the legacy key to keep the operator's mental model aligned
+# with Claude's UI (which toggles `bypassPermissionsModeAccepted`
+# when clicked).
+SETTINGS_JSON=/home/dev/.claude/settings.json
 CLAUDE_JSON=/home/dev/.claude.json
-if ! grep -q '"bypassPermissionsModeAccepted"' "${CLAUDE_JSON}" 2>/dev/null; then
-  python3 - "${CLAUDE_JSON}" <<'PY'
+python3 - "${SETTINGS_JSON}" "${CLAUDE_JSON}" <<'PY'
 import json, os, sys
-p = sys.argv[1]
-try:
-    with open(p) as f:
-        cfg = json.load(f)
-except (FileNotFoundError, json.JSONDecodeError):
-    cfg = {}
-cfg["bypassPermissionsModeAccepted"] = True
-tmp = p + ".tmp"
-with open(tmp, "w") as f:
-    json.dump(cfg, f, indent=2)
-os.replace(tmp, p)
+
+def load(p):
+    try:
+        with open(p) as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
+
+def save(p, cfg):
+    os.makedirs(os.path.dirname(p), exist_ok=True)
+    tmp = p + ".tmp"
+    with open(tmp, "w") as f:
+        json.dump(cfg, f, indent=2)
+    os.replace(tmp, p)
+
+settings_path, claude_path = sys.argv[1], sys.argv[2]
+
+settings = load(settings_path)
+if not settings.get("skipDangerousModePermissionPrompt"):
+    settings["skipDangerousModePermissionPrompt"] = True
+    save(settings_path, settings)
+
+claude = load(claude_path)
+if not claude.get("bypassPermissionsModeAccepted"):
+    claude["bypassPermissionsModeAccepted"] = True
+    save(claude_path, claude)
 PY
-fi
 
 # Claude Code v2.1.x exposes Remote Control as a top-level flag
 # `--remote-control[=name]` (alias `--rc`) rather than as a
