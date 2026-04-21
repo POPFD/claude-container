@@ -43,6 +43,11 @@ Day-to-day:
 - `./scripts/shell.sh` — drop into a dev shell as `dev` in
   `/workspace`. From here you can `cargo build`, `pnpm install`,
   `pytest`, etc.
+- `./scripts/shell.sh --pentest [--quick]` — run the in-container
+  isolation pentest (`scripts/pentest.sh`) as the `dev` user. The
+  script is streamed on stdin, so edits on the host take effect
+  immediately — no image rebuild. Exits non-zero if any probe
+  detects a regression against the threat model below.
 - `./scripts/reload.sh` — rebuild the sidecar image and reload the
   egress allowlist after editing `config/allowlist.yaml`. The
   allowlist is baked into the sidecar image at build time, so an
