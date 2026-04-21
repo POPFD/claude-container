@@ -13,4 +13,25 @@ if [[ ! -f .env ]]; then
   exit 1
 fi
 
+# Ensure the workspace bind-mount source exists with UID 1000 ownership
+# BEFORE `docker compose up` runs. If the path doesn't exist, Docker
+# auto-creates it as root:root, which leaves /workspace unwritable by
+# the in-container `dev` user (uid 1000) and silently breaks every
+# tool that tries to write there (git clone, cargo, claude, ...).
+# WORKSPACE_PATH may be set in .env; honour the same default as
+# compose.yaml.
+WORKSPACE_PATH="${WORKSPACE_PATH:-$(grep -E '^WORKSPACE_PATH=' .env 2>/dev/null | tail -1 | cut -d= -f2-)}"
+WORKSPACE_PATH="${WORKSPACE_PATH:-./workspace}"
+if [[ ! -d "$WORKSPACE_PATH" ]]; then
+  mkdir -p "$WORKSPACE_PATH"
+fi
+ws_uid=$(stat -c '%u' "$WORKSPACE_PATH")
+if [[ "$ws_uid" != "1000" ]]; then
+  echo "warning: $WORKSPACE_PATH is owned by uid=$ws_uid, but the in-container" >&2
+  echo "  dev user is uid=1000. The bind mount will be unwritable from inside" >&2
+  echo "  devbox. Fix with:" >&2
+  echo "      sudo chown -R 1000:1000 \"$WORKSPACE_PATH\"" >&2
+  echo "  (or set WORKSPACE_PATH in .env to a path you own as uid 1000)." >&2
+fi
+
 exec docker compose up -d --build "$@"

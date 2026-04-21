@@ -16,6 +16,32 @@ export UV_NO_UPDATE_CHECK=1
 
 cd /workspace
 
+# /workspace is a bind mount from the host. If the host path was
+# auto-created by Docker (because it didn't pre-exist) it lands
+# root-owned and unwritable by `dev` (uid 1000). Surface this clearly
+# instead of launching claude into a cwd it can't write to — the
+# failure mode otherwise is claude silently cloning work into $HOME.
+if [[ ! -w /workspace ]]; then
+  ws_owner=$(stat -c '%u:%g' /workspace 2>/dev/null || echo "?")
+  cat <<EOF >&2
+
+╔════════════════════════════════════════════════════════════════╗
+║  devbox: /workspace is not writable by dev (uid 1000).         ║
+║  Current owner inside container: ${ws_owner}                           ║
+║                                                                ║
+║  The host-side bind-mount source is owned by a uid other than  ║
+║  1000. On the HOST, run:                                       ║
+║                                                                ║
+║      sudo chown -R 1000:1000 <your WORKSPACE_PATH>             ║
+║                                                                ║
+║  (default WORKSPACE_PATH is ./workspace under the repo root).  ║
+║  Then: docker compose restart devbox                           ║
+╚════════════════════════════════════════════════════════════════╝
+
+EOF
+  exec sleep infinity
+fi
+
 # Has the operator completed the OAuth flow?
 #   - `~/.claude/.credentials.json` is Claude Code's token store.
 #   - On a freshly-mounted `claude-config` volume this file is absent;
