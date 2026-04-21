@@ -1,0 +1,11 @@
+# Operator-local environment overrides.
+.env
+
+# Workspace is bind-mounted into devbox; contents are user code, not
+# part of this repo. Keep the directory so the bind mount target
+# exists in a fresh clone.
+workspace/*
+!workspace/.gitkeep
+
+# Claude Code local session settings (per-operator, not shared).
+.claude/

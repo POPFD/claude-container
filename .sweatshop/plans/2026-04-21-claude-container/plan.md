@@ -32,10 +32,10 @@ These are explicitly in scope but not fully closed — they belong in the README
 **Why:** Establishes the file layout everything else will populate. Having `.env.example` first forces us to name all the knobs up front.
 
 **Acceptance criteria:**
-- [ ] Directories exist: `devbox/`, `fw-sidecar/`, `scripts/`, `config/`, `workspace/` (the last gitignored).
-- [ ] `.env.example` contains: `DEVBOX_NAME`, `MEM_LIMIT`, `PIDS_LIMIT`, `DNS_UPSTREAM`, `DNS_UPSTREAM_TLS` (0/1), `WORKSPACE_PATH`, `UV_NO_UPDATE_CHECK=1`, `CARGO_NET_OFFLINE_AFTER` (documentation-only). Each line has a comment and a sensible default.
-- [ ] `.gitignore` ignores `.env`, `workspace/*` (with `!.gitkeep`).
-- [ ] `git status` clean after commit.
+- [x] Directories exist: `devbox/`, `fw-sidecar/`, `scripts/`, `config/`, `workspace/` (the last gitignored).
+- [x] `.env.example` contains: `DEVBOX_NAME`, `MEM_LIMIT`, `PIDS_LIMIT`, `DNS_UPSTREAM`, `DNS_UPSTREAM_TLS` (0/1), `WORKSPACE_PATH`, `UV_NO_UPDATE_CHECK=1`, `CARGO_NET_OFFLINE_AFTER` (documentation-only). Each line has a comment and a sensible default.
+- [x] `.gitignore` ignores `.env`, `workspace/*` (with `!.gitkeep`).
+- [x] `git status` clean after commit.
 
 **Files likely involved:**
 - `.env.example`
