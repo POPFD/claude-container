@@ -72,19 +72,6 @@ services:
     tmpfs:
       - /tmp
       - /run
-      # dev-owned tmpfs: default tmpfs is root-owned mode 755 which
-      # would block the dev user from writing. Explicit uid/gid keeps
-      # the rootfs read-only while letting tools write their caches.
-      - "/home/dev/.cache:uid=1000,gid=1000,mode=755"
-      - "/home/dev/.config:uid=1000,gid=1000,mode=755"
-      # `.ssh` for known_hosts / control sockets. Mode 700 matches
-      # what ssh expects; tighter than the caches.
-      - "/home/dev/.ssh:uid=1000,gid=1000,mode=700"
-      # `.npm` cacache for npm/pnpm. Tmpfs rather than a named
-      # volume — cache is cheap to rebuild, and project-local
-      # `node_modules` under the bind-mounted /workspace already
-      # provides the persistent side.
-      - "/home/dev/.npm:uid=1000,gid=1000,mode=755"
     pids_limit: "${PIDS_LIMIT:-1024}"
     mem_limit: "${MEM_LIMIT:-8g}"
     ulimits:
@@ -101,10 +88,27 @@ services:
       DEVBOX_NAME: "${DEVBOX_NAME:-devbox}"
     volumes:
       - "${WORKSPACE_PATH:-./workspace}:/workspace"
+      # $HOME as a named volume. On first mount Docker seeds it from
+      # the image's /home/dev, so .bashrc, rustup, cargo, the claude
+      # CLI install, and any top-level dotfiles (notably
+      # .claude.json, where Claude persists onboarding/theme state)
+      # all land here and persist across restarts. The rootfs
+      # outside $HOME stays read-only, so `read_only: true` above
+      # still gives us the hardening benefit — just without fighting
+      # every tool that wants to write a dotfile in $HOME.
+      #
+      # claude-config and tool-caches below are nested volumes:
+      # they shadow the corresponding subdirs of home-dev so that
+      # OAuth/memory/plugins and the cargo registry can be nuked
+      # independently via `./scripts/down.sh --nuke` without
+      # clobbering the rest of $HOME.
+      - home-dev:/home/dev
       - claude-config:/home/dev/.claude
       - tool-caches:/home/dev/.cargo
 
 volumes:
+  home-dev:
+    name: claude-container_home-dev
   claude-config:
     name: claude-container_claude-config
   tool-caches:

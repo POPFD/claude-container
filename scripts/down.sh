@@ -10,13 +10,17 @@ cd "$(dirname "$0")/.."
 
 if [[ "${1:-}" == "--nuke" ]]; then
   cat <<'EOF' >&2
-WARNING: --nuke deletes the claude-config and tool-caches named
-volumes. You will lose:
+WARNING: --nuke deletes the home-dev, claude-config, and
+tool-caches named volumes. You will lose:
   - Claude Code OAuth credentials (you'll need to re-run
     `claude /login` after the next up).
   - Claude auto-memory for projects accessed from the container.
   - Installed Claude Code plugins and their state.
-  - Cargo/npm/uv caches under /home/dev/.cargo (rebuild-only cost).
+  - Claude onboarding/theme state (`.claude.json`).
+  - Cargo registry cache and every other dotfile under $HOME
+    inside the container (shell history, tool-local configs).
+  - The entire seeded /home/dev (rebuilt from the image on next
+    up — cheap, no host impact).
 
 The host ./workspace directory is NOT affected.
 

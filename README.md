@@ -147,7 +147,7 @@ capsh --print | grep ^Current:
 
 touch /etc/test 2>&1 | grep Read-only
 # => "Read-only file system"
-touch /tmp/t /home/dev/.cache/t /home/dev/.config/t && echo tmpfs ok
+touch /tmp/t /home/dev/.cache/t /home/dev/.config/t && echo home+tmp writable
 ```
 
 ## Threat model
@@ -199,9 +199,19 @@ touch /tmp/t /home/dev/.cache/t /home/dev/.config/t && echo tmpfs ok
 | OAuth token, Claude config | `claude-config` volume (`/home/dev/.claude`) | down/up, rebuilds, host restart. Destroyed only by `./scripts/down.sh --nuke`. |
 | Claude auto-memory | `claude-config` volume at `/home/dev/.claude/projects/<encoded-cwd>/memory/` | Same as above. Distinct from any host-side Claude memory because the cwd (`/workspace`) is different. |
 | Installed Claude plugins | `claude-config` volume at `/home/dev/.claude/plugins/` | Same as above. |
+| Claude onboarding/theme state (`.claude.json`) | `home-dev` volume (`/home/dev`) | down/up, rebuilds, host restart. Destroyed by `./scripts/down.sh --nuke`. |
 | Cargo registry cache | `tool-caches` volume (`/home/dev/.cargo`) | down/up. |
-| npm cache | tmpfs (`/home/dev/.npm`) | Re-created per run — cheap. Project-local `node_modules/` under `/workspace` is the persistent side. |
+| npm cache, tool dotfiles, shell history | `home-dev` volume (`/home/dev`) | Same as Claude onboarding — part of the persistent $HOME volume. |
 | Workspace source | `./workspace/` bind mount | Persists on the host. |
+
+`/home/dev` is a named volume seeded from the image on first run
+(bashrc, rustup, cargo, claude CLI install, etc. are copied in
+once). Subsequent starts reuse the volume, so any dotfile a tool
+drops at `$HOME` sticks. The rest of the rootfs outside `$HOME`
+remains read-only — the hardening posture is unchanged. Image
+rebuilds that change `$HOME` contents do NOT propagate into an
+existing `home-dev` volume; run `./scripts/down.sh --nuke` to
+pick up the new defaults.
 
 ## Recovery
 
