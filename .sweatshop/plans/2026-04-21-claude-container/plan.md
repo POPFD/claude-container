@@ -72,11 +72,11 @@ During image build, run `unbound-control-setup` so the control socket key/cert p
 **Why:** Isolates the image build from any logic. A subsequent step adds reconcile logic without re-churning the Dockerfile.
 
 **Acceptance criteria:**
-- [ ] `docker build fw-sidecar/` succeeds.
-- [ ] `docker run --rm <img> sh -c 'iptables -V && ipset -v && unbound -V && unbound-control -h && dig -v && python3 -c "import yaml"'` succeeds.
-- [ ] `/etc/unbound/unbound_control.key` and `/etc/unbound/unbound_server.key` exist in the image.
-- [ ] Image size under ~110 MB.
-- [ ] Entrypoint script is `+x`.
+- [x] `docker build fw-sidecar/` succeeds.
+- [x] `docker run --rm <img> sh -c 'iptables -V && ipset -v && unbound -V && unbound-control -h && dig -v && python3 -c "import yaml"'` succeeds.
+- [x] `/etc/unbound/unbound_control.key` and `/etc/unbound/unbound_server.key` exist in the image.
+- [x] Image size under ~110 MB.
+- [x] Entrypoint script is `+x`.
 
 **Files likely involved:**
 - `fw-sidecar/Dockerfile`
@@ -368,4 +368,4 @@ README contents:
 - Per-label DNS allowlisting (full closure of wildcard-DNS exfil): out of scope for v1.
 - Audit log shipping from the sidecar: iptables LOG rules and log rotation are future work.
 - DNSSEC validation on upstream responses.
-- **`unbound-control` keys baked at image build time**: every container started from the same image has the same control socket keys. Low risk in the local-only use case (socket is loopback, sidecar runs as root). If the image is ever published or shared, regenerate keys at container startup instead of build time.
+- **`unbound-control` keys baked at image build time**: every container started from the same image has the same control socket keys. Low risk ONLY in the local-only use case (socket is loopback, sidecar runs as root, image never leaves the host). If the image is ever pushed to a registry (even a private one), anyone who can pull the image can extract the private key from the layer — regenerate keys at container startup instead of build time before doing so.
