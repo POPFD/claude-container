@@ -72,7 +72,16 @@ services:
     cap_drop: [ALL]
     security_opt:
       - no-new-privileges:true
-    read_only: true
+    # NOTE: rootfs is intentionally writable (no `read_only: true`).
+    # Required for the host-side `scripts/install-pkg.sh` backchannel,
+    # which runs `apt-get install` via `docker exec -u 0 devbox ...`.
+    # Claude and any other in-container process runs as `dev` (uid
+    # 1000) with no sudoers entry and `no-new-privileges`, so it
+    # cannot elevate to invoke apt itself — only a host-side
+    # `docker exec -u 0` can. Losing RO-rootfs is a defense-in-depth
+    # downgrade (a kernel LPE inside devbox could now tamper with
+    # /usr); the primary "Claude can't install packages" property is
+    # enforced by uid + no-sudo + NNP, not by read_only.
     # Claude Code v2.1.x auto-enables its non-interactive --print
     # mode when stdin/stdout are not a TTY, which makes the
     # Remote Control server exit immediately with "Input must be
@@ -97,10 +106,9 @@ services:
         hard: 8192
     # NOTE: cannot use `dns:` here — Docker rejects it alongside
     # `network_mode: service:...`. The devbox entrypoint rewrites
-    # /etc/resolv.conf to `nameserver 127.0.0.1` instead (which is
-    # writable even under read_only because resolv.conf is a bind
-    # mount from the daemon). Without this, Docker injects the host's
-    # nameservers and the DNS filter is bypassed.
+    # /etc/resolv.conf to `nameserver 127.0.0.1` instead. Without
+    # this, Docker injects the host's nameservers and the DNS filter
+    # is bypassed.
     environment:
       DEVBOX_NAME: "${DEVBOX_NAME:-devbox}"
     volumes:
@@ -109,10 +117,12 @@ services:
       # the image's /home/dev, so .bashrc, rustup, cargo, the claude
       # CLI install, and any top-level dotfiles (notably
       # .claude.json, where Claude persists onboarding/theme state)
-      # all land here and persist across restarts. The rootfs
-      # outside $HOME stays read-only, so `read_only: true` above
-      # still gives us the hardening benefit — just without fighting
-      # every tool that wants to write a dotfile in $HOME.
+      # all land here and persist across restarts. Rootfs outside
+      # $HOME is writable (see `read_only` note above), but `dev`
+      # (uid 1000) can't write to root-owned paths there without
+      # sudo, and NNP prevents escalation — so the practical write
+      # surface for in-container processes is still $HOME, /workspace,
+      # /tmp, /run.
       #
       # claude-config and tool-caches below are nested volumes:
       # they shadow the corresponding subdirs of home-dev so that

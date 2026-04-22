@@ -61,6 +61,13 @@ domains:
   # Node / npm
   - registry.npmjs.org
 
+  # Ubuntu apt archives. Needed only for the host-side
+  # `scripts/install-pkg.sh` backchannel; apt deb transport is
+  # plaintext HTTP (port 80, see ports.overrides below) but packages
+  # are GPG-verified by apt itself, so on-path tamper is detectable.
+  - archive.ubuntu.com
+  - security.ubuntu.com
+
   # Python / PyPI. files.pythonhosted.org is a CNAME to fastly.net,
   # so we also need a DNS-layer allow for the fastly suffix. The
   # IP-layer ipset only contains fastly IPs pulled from pypi /
@@ -79,3 +86,7 @@ ports:
   overrides:
     - match: github.com
       ports: [22, 443]
+    - match: archive.ubuntu.com
+      ports: [80]
+    - match: security.ubuntu.com
+      ports: [80]

@@ -12,7 +12,9 @@ sidecar that restricts egress to an operator-controlled allowlist.
   suffixes, with everything else returning REFUSED.
 - **Full dev toolchain** — Node + pnpm, Rust + clippy/rustfmt,
   Python + uv, Claude Code CLI, all running as a non-root `dev`
-  user under a read-only rootfs.
+  user with no sudo and `no-new-privileges`. Missing packages can
+  be installed from the host via `./scripts/install-pkg.sh <pkg>`;
+  Claude inside the container cannot reach that path.
 - **Drive from anywhere** — the container runs `claude
   remote-control` in server mode, so you can steer it from
   `claude.ai/code` or the mobile app.
