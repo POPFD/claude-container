@@ -11,6 +11,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         gnupg \
         gosu \
         libcap2-bin \
+        libssl-dev \
         openssh-client \
         pkg-config \
         sudo \
